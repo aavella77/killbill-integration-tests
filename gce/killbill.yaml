@@ -1,0 +1,118 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  labels:
+    app: redis
+spec:
+  ports:
+  - port: 6379
+    targetPort: 6379
+  selector:
+    app: redis
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+spec:
+  selector:
+    matchLabels:
+      app: redis
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: master
+        image: redis:5.0-rc4
+        resources:
+          requests:
+            cpu: 100m
+            memory: 20Mi
+        ports:
+        - containerPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  labels:
+    app: mysql
+spec:
+  ports:
+    - port: 3306
+  selector:
+    app: mysql
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  labels:
+    app: mysql
+spec:
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - image: killbill/mariadb:0.20
+        name: mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: killbill
+        ports:
+        - containerPort: 3306
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: killbill
+  labels:
+    app: killbill
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 8080
+  selector:
+    app: killbill
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: killbill
+spec:
+  selector:
+    matchLabels:
+      app: killbill
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: killbill
+    spec:
+      containers:
+      - name: killbill
+        image: killbill/killbill:0.20.1
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1536Mi
+        env:
+        - name: KILLBILL_DAO_URL
+          value: jdbc:mysql://mysql:3306/killbill
+        - name: KILLBILL_DAO_USER
+          value: root
+        - name: KILLBILL_DAO_PASSWORD
+          value: killbill
+        - name: KILLBILL_SERVER_TEST_MODE
+          value: true
+        ports:
+        - containerPort: 8080
